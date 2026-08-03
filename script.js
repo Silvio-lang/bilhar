@@ -305,13 +305,24 @@ function iniciarAnimacaoQueda(disco, texto) {
 function desenhar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Configuração comum para os números nos buracos
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Buraco J2 (Esquerda) com o número 2 no centro
     ctx.beginPath(); ctx.arc(buracoJ1.x, buracoJ1.y, buracoJ1.raio, 0, Math.PI * 2);
     ctx.fillStyle = '#140c07'; ctx.fill(); ctx.strokeStyle = '#3d2314'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.fillText('2', buracoJ1.x, buracoJ1.y);
 
+    // Buraco J1 (Direita) com o número 1 no centro
     ctx.beginPath(); ctx.arc(buracoJ2.x, buracoJ2.y, buracoJ2.raio, 0, Math.PI * 2);
     ctx.fillStyle = '#140c07'; ctx.fill(); ctx.strokeStyle = '#3d2314'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.fillText('1', buracoJ2.x, buracoJ2.y);
 
-// Elástico / Mira com Cursor em Cruz (Linha longa, fina e contínua)
+    // Elástico / Mira com Cursor em Cruz (Linha longa, fina e contínua)
     if (miraPronta && discoMaior.visivel && !discoMaior.caindo) {
         // Calculamos a direção (ângulo) entre o disco e o ponto de controle
         const dx = controleX - discoMaior.x;
