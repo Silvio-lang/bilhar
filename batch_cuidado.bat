@@ -1,4 +1,4 @@
 git add .
-git commit -m "Corrige reposicionamento exclusivo da bola azul em caso de falta e melhora a sincronizacao de queda"
+git commit -m "Implementa Modo Treino e trava de mesa privada para o Jogador 1"
 git push origin main
 pause

@@ -5,6 +5,7 @@ const elementoMensagem = document.getElementById("mensagem");
 const elementoTurno = document.getElementById("turno-indicador");
 const btnDisparar = document.getElementById("btn-disparar");
 
+
 const ATRITO = 0.985;
 const FORCA_MULT = 0.12;
 
@@ -15,6 +16,10 @@ let pontosJ1 = 0, pontosJ2 = 0;
 let emMovimento = false;
 let dadosSincronizadosEnviados = false;
 let resetPendente = false;
+
+let modoTreino = true;
+let mesaBloqueada = false;
+const btnTrava = document.getElementById("btn-trava");
 
 const buracoJ1 = { x: 60, y: 225, raio: 32 }; 
 const buracoJ2 = { x: 740, y: 225, raio: 32 }; 
@@ -29,11 +34,21 @@ let controleX = 0, controleY = 0;
 // --- SOCKETS ---
 socket.on('atribuirJogador', (data) => {
     meuNumeroJogador = data.numeroJogador;
-    if (meuNumeroJogador === 0) {
-        elementoMensagem.innerHTML = "A mesa está cheia! Você é um espectador.";
-    } else {
-        elementoMensagem.innerHTML = `Você é o JOGADOR ${meuNumeroJogador}.<br>Aguardando o adversário...`;
+    mesaBloqueada = data.mesaBloqueada;
+    
+    if (data.jogadoresConectados === 1) {
+        modoTreino = true;
+        elementoMensagem.innerHTML = "MODO TREINO ATIVO.<br>Você pode praticar livremente!";
+        elementoMensagem.style.display = "block";
+    } else if (meuNumeroJogador === 0) {
+        elementoMensagem.innerHTML = "A mesa está cheia ou em treino privado! Você é um espectador.";
+        elementoMensagem.style.display = "block";
     }
+
+    if (meuNumeroJogador !== 1 && btnTrava) {
+        btnTrava.style.display = "none"; // Apenas J1 controla a trava
+    }
+    atualizarIndicadorTurno();
 });
 
 socket.on('jogoPronto', () => {
@@ -88,6 +103,21 @@ socket.on('jogoReiniciado', (estado) => {
     miraPronta = false;
     btnDisparar.style.display = "none";
     resetPendente = false;
+
+socket.on('statusTravaAtualizado', (dados) => {
+    mesaBloqueada = dados.mesaBloqueada;
+    if (btnTrava) {
+        btnTrava.innerText = mesaBloqueada ? "Modo: Treino Fechado 🔒" : "Modo: Aberto a Desafiantes 🔓";
+        btnTrava.style.background = mesaBloqueada ? "#e53935" : "#2e7d32";
+    }
+});
+
+function alternarTravaTreino() {
+    if (meuNumeroJogador === 1) {
+        mesaBloqueada = !mesaBloqueada;
+        socket.emit('alternarTravaMesa', mesaBloqueada);
+    }
+}
 
     document.getElementById("ptsJ1").innerText = 0;
     document.getElementById("ptsJ2").innerText = 0;
@@ -191,7 +221,9 @@ function confirmarEExecutarTacada() {
     if (miraPronta && jogadorAtual === meuNumeroJogador) {
         const vx = (controleX - discoMaior.x) * FORCA_MULT;
         const vy = (controleY - discoMaior.y) * FORCA_MULT;
-        const proximo = jogadorAtual === 1 ? 2 : 1;
+        
+        // Se estiver sozinho em treino, a vez continua sendo do Jogador 1
+        const proximo = (modoTreino || mesaBloqueada) ? 1 : (jogadorAtual === 1 ? 2 : 1);
 
         socket.emit('realizarTacada', { vx, vy, proximoJogador: proximo, autor: meuNumeroJogador });
     }
