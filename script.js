@@ -46,6 +46,9 @@ socket.on('executarTacada', (dados) => {
     discoMaior.vy = dados.vy;
     autorUltimaTacada = dados.autor; 
     jogadorAtual = dados.proximoJogador;
+    
+    // Altera a cor do disco maior para combinar com o jogador da vez
+    discoMaior.cor = (jogadorAtual === 1) ? '#1e88e5' : '#ff8a65';
     emMovimento = true;
     miraPronta = false;
     btnDisparar.style.display = "none";
