@@ -311,10 +311,28 @@ function desenhar() {
     ctx.beginPath(); ctx.arc(buracoJ2.x, buracoJ2.y, buracoJ2.raio, 0, Math.PI * 2);
     ctx.fillStyle = '#140c07'; ctx.fill(); ctx.strokeStyle = '#3d2314'; ctx.lineWidth = 4; ctx.stroke();
 
+// Elástico / Mira com Cursor em Cruz (Linha longa, fina e contínua)
     if (miraPronta && discoMaior.visivel && !discoMaior.caindo) {
-        ctx.beginPath(); ctx.moveTo(discoMaior.x, discoMaior.y); ctx.lineTo(controleX, controleY);
-        ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 3; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.setLineDash([]);
+        // Calculamos a direção (ângulo) entre o disco e o ponto de controle
+        const dx = controleX - discoMaior.x;
+        const dy = controleY - discoMaior.y;
+        const angulo = Math.atan2(dy, dx);
+
+        // Define um comprimento longo para a linha de mira (ex: 600 pixels)
+        const comprimentoMira = 600;
+        const miraFimX = discoMaior.x + Math.cos(angulo) * comprimentoMira;
+        const miraFimY = discoMaior.y + Math.sin(angulo) * comprimentoMira;
+
+        // Linha contínua, longa e fina (lineWidth: 1.5)
+        ctx.beginPath(); 
+        ctx.moveTo(discoMaior.x, discoMaior.y); 
+        ctx.lineTo(miraFimX, miraFimY);
+        ctx.strokeStyle = '#00ffff'; 
+        ctx.lineWidth = 1.5; 
+        ctx.setLineDash([]); // Garante que a linha é contínua
+        ctx.stroke();
         
+        // Cursor em cruz (permanece no ponto exato do toque/controle de força)
         const tamCruz = 12;
         ctx.beginPath();
         ctx.moveTo(controleX - tamCruz, controleY); ctx.lineTo(controleX + tamCruz, controleY);
