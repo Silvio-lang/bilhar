@@ -19,7 +19,6 @@ let resetPendente = false;
 const buracoJ1 = { x: 60, y: 225, raio: 32 }; 
 const buracoJ2 = { x: 740, y: 225, raio: 32 }; 
 
-// Agora o disco azul também possui atributos de queda e escala
 const discoMaior = { x: 400, y: 50, raio: 24, massa: 2.0, vx: 0, vy: 0, cor: '#1e88e5', visivel: true, caindo: false, escala: 1.0 };
 const discoMenor = { x: 400, y: 225, raio: 15, massa: 1.0, vx: 0, vy: 0, cor: '#e53935', visivel: true, caindo: false, escala: 1.0 };
 
@@ -60,12 +59,16 @@ socket.on('sincronizarPosicoes', (dados) => {
     discoMaior.vx = 0;
     discoMaior.vy = 0;
     discoMaior.visivel = dados.maior.visivel;
+    if (dados.maior.caindo !== undefined) discoMaior.caindo = dados.maior.caindo;
+    if (dados.maior.escala !== undefined) discoMaior.escala = dados.maior.escala;
 
     discoMenor.x = dados.menor.x;
     discoMenor.y = dados.menor.y;
     discoMenor.vx = 0;
     discoMenor.vy = 0;
     discoMenor.visivel = dados.menor.visivel;
+    if (dados.menor.caindo !== undefined) discoMenor.caindo = dados.menor.caindo;
+    if (dados.menor.escala !== undefined) discoMenor.escala = dados.menor.escala;
 });
 
 socket.on('atualizarPlacar', (estado) => {
@@ -111,20 +114,30 @@ function atualizarIndicadorTurno() {
     }
 }
 
-function reposicionarAposPonto() {
-    const desvioY = (Math.random() - 0.5) * 160;
-    discoMenor.x = 400; discoMenor.y = 225 + desvioY;
-    discoMenor.vx = 0; discoMenor.vy = 0;
-    discoMenor.visivel = true; discoMenor.caindo = false; discoMenor.escala = 1.0;
+// Nova inteligência de reposicionamento baseada nas regras de bilhar
+function tratarReposicionamento() {
+    if (!discoMenor.visivel) {
+        // A vermelha caiu: repõe a vermelha em nova posição e a azul na base
+        const desvioY = (Math.random() - 0.5) * 160;
+        discoMenor.x = 400; discoMenor.y = 225 + desvioY;
+        discoMenor.visivel = true; discoMenor.caindo = false; discoMenor.escala = 1.0;
+        
+        discoMaior.x = 400; discoMaior.y = 50;
+        discoMaior.visivel = true; discoMaior.caindo = false; discoMaior.escala = 1.0;
+    } 
+    else if (!discoMaior.visivel) {
+        // Apenas a azul caiu (Falta): repõe apenas a azul, a vermelha fica intocável
+        discoMaior.x = 400; discoMaior.y = 50;
+        discoMaior.visivel = true; discoMaior.caindo = false; discoMaior.escala = 1.0;
+    }
 
-    discoMaior.x = 400; discoMaior.y = 50;
     discoMaior.vx = 0; discoMaior.vy = 0;
-    discoMaior.visivel = true; discoMaior.caindo = false; discoMaior.escala = 1.0;
+    discoMenor.vx = 0; discoMenor.vy = 0;
 
     if (meuNumeroJogador === 1) {
         socket.emit('notificarSincronizacao', {
-            maior: { x: discoMaior.x, y: discoMaior.y, visivel: true },
-            menor: { x: discoMenor.x, y: discoMenor.y, visivel: true }
+            maior: { x: discoMaior.x, y: discoMaior.y, visivel: discoMaior.visivel, caindo: discoMaior.caindo, escala: discoMaior.escala },
+            menor: { x: discoMenor.x, y: discoMenor.y, visivel: discoMenor.visivel, caindo: discoMenor.caindo, escala: discoMenor.escala }
         });
     }
 }
@@ -148,7 +161,7 @@ function iniciarArrasto(e) {
                    Math.abs(discoMenor.vx) < 0.05 && Math.abs(discoMenor.vy) < 0.05;
 
     const dist = Math.hypot(coords.x - discoMaior.x, coords.y - discoMaior.y);
-    if ((dist < discoMaior.raio || miraPronta) && parado && !discoMenor.caindo && !discoMaior.caindo) {
+    if ((dist < discoMaior.raio || miraPronta) && parado && !discoMenor.caindo && !discoMaior.caindo && discoMaior.visivel) {
         arrastando = true;
         controleX = coords.x; controleY = coords.y;
         e.preventDefault();
@@ -225,7 +238,6 @@ function atualizarFisica() {
         }
     }
 
-    // Verifica buracos para os dois discos
     discos.forEach(d => {
         if (!d.caindo) {
             const distJ1 = Math.hypot(d.x - buracoJ1.x, d.y - buracoJ1.y);
@@ -259,13 +271,12 @@ function atualizarFisica() {
 
         if (meuNumeroJogador === 1) {
             socket.emit('notificarSincronizacao', {
-                maior: { x: discoMaior.x, y: discoMaior.y, visivel: discoMaior.visivel },
-                menor: { x: discoMenor.x, y: discoMenor.y, visivel: discoMenor.visivel }
+                maior: { x: discoMaior.x, y: discoMaior.y, visivel: discoMaior.visivel, caindo: discoMaior.caindo, escala: discoMaior.escala },
+                menor: { x: discoMenor.x, y: discoMenor.y, visivel: discoMenor.visivel, caindo: discoMenor.caindo, escala: discoMenor.escala }
             });
         }
     }
 
-    // Processa a animação de queda para qualquer disco que estiver caindo
     discos.forEach(d => {
         if (d.caindo) {
             d.escala -= 0.08;
@@ -276,7 +287,7 @@ function atualizarFisica() {
                     resetPendente = true;
                     setTimeout(() => {
                         elementoMensagem.style.display = "none";
-                        reposicionarAposPonto();
+                        tratarReposicionamento();
                         resetPendente = false;
                     }, 2000); 
                 }
@@ -294,14 +305,12 @@ function iniciarAnimacaoQueda(disco, texto) {
 function desenhar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Buracos
     ctx.beginPath(); ctx.arc(buracoJ1.x, buracoJ1.y, buracoJ1.raio, 0, Math.PI * 2);
     ctx.fillStyle = '#140c07'; ctx.fill(); ctx.strokeStyle = '#3d2314'; ctx.lineWidth = 4; ctx.stroke();
 
     ctx.beginPath(); ctx.arc(buracoJ2.x, buracoJ2.y, buracoJ2.raio, 0, Math.PI * 2);
     ctx.fillStyle = '#140c07'; ctx.fill(); ctx.strokeStyle = '#3d2314'; ctx.lineWidth = 4; ctx.stroke();
 
-    // Elástico / Mira com Cursor em Cruz
     if (miraPronta && discoMaior.visivel && !discoMaior.caindo) {
         ctx.beginPath(); ctx.moveTo(discoMaior.x, discoMaior.y); ctx.lineTo(controleX, controleY);
         ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 3; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.setLineDash([]);
@@ -315,7 +324,6 @@ function desenhar() {
         ctx.beginPath(); ctx.arc(controleX, controleY, 4, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
     }
 
-    // Discos
     if (discoMaior.visivel) {
         ctx.beginPath(); const r = discoMaior.raio * discoMaior.escala;
         ctx.arc(discoMaior.x, discoMaior.y, Math.max(0, r), 0, Math.PI * 2);
