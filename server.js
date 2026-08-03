@@ -9,7 +9,6 @@ const io = new Server(server, {
     cors: { origin: "*" }
 });
 
-// Serve o arquivo index.html localizado na própria raiz do projeto
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -26,7 +25,6 @@ let estadoJogo = {
 io.on('connection', (socket) => {
     console.log(`Novo jogador conectado: ${socket.id}`);
 
-    // Atribuição de Jogadores (Máximo 2)
     if (jogadoresConectados.length < 2) {
         const numeroJogador = jogadoresConectados.length + 1;
         jogadoresConectados.push({ id: socket.id, numero: numeroJogador });
@@ -34,29 +32,36 @@ io.on('connection', (socket) => {
         socket.emit('atribuirJogador', { numeroJogador });
         console.log(`Jogador ${numeroJogador} atribuído para ${socket.id}`);
     } else {
-        socket.emit('atribuirJogador', { numeroJogador: 0 }); // Espectador
+        socket.emit('atribuirJogador', { numeroJogador: 0 });
     }
 
-    // Notifica quando ambos estão conectados na sala
     if (jogadoresConectados.length === 2) {
         io.emit('jogoPronto', { estadoJogo });
     }
 
-    // Recebe o disparo do jogador da vez e repassa para o adversário
     socket.on('realizarTacada', (dadosTacada) => {
+        estadoJogo.jogadorAtual = dadosTacada.proximoJogador;
         io.emit('executarTacada', dadosTacada);
     });
 
-    // Atualização do placar
     socket.on('notificarPonto', (dadosPonto) => {
         estadoJogo.pontosJ1 = dadosPonto.pontosJ1;
         estadoJogo.pontosJ2 = dadosPonto.pontosJ2;
         io.emit('atualizarPlacar', estadoJogo);
     });
 
-    // Recebe as posições exatas enviadas pelo J1 e repassa para o J2
     socket.on('notificarSincronizacao', (dadosPosicao) => {
         socket.broadcast.emit('sincronizarPosicoes', dadosPosicao);
+    });
+
+    socket.on('solicitarReinicio', () => {
+        estadoJogo.pontosJ1 = 0;
+        estadoJogo.pontosJ2 = 0;
+        estadoJogo.jogadorAtual = 1;
+        estadoJogo.discoMaior = { x: 400, y: 50 };
+        estadoJogo.discoMenor = { x: 400, y: 225 };
+
+        io.emit('jogoReiniciado', estadoJogo);
     });
 
     socket.on('disconnect', () => {

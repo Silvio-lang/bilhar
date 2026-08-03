@@ -15,10 +15,29 @@
             display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 800px; margin-bottom: 8px;
         }
         #placar { display: flex; justify-content: space-between; width: 100%; padding: 0 10px; font-size: 20px; font-weight: bold; }
+        
+        #painel-controle {
+            display: flex; align-items: center; gap: 12px; margin-top: 6px;
+        }
         #turno-indicador {
-            margin-top: 4px; font-size: 16px; padding: 4px 12px; border-radius: 20px;
+            font-size: 16px; padding: 4px 12px; border-radius: 20px;
             background-color: #333; color: #ffeb3b; font-weight: bold;
         }
+        #btn-reiniciar {
+            background-color: #d32f2f; color: white; border: none;
+            padding: 6px 14px; font-size: 14px; font-weight: bold;
+            border-radius: 6px; cursor: pointer; transition: 0.2s;
+        }
+        #btn-reiniciar:active { background-color: #9a0007; transform: scale(0.95); }
+
+        #btn-disparar {
+            background-color: #2e7d32; color: #ffffff; border: 2px solid #4caf50;
+            padding: 8px 24px; font-size: 18px; font-weight: bold;
+            border-radius: 8px; cursor: pointer; display: none; transition: 0.2s;
+            box-shadow: 0 4px 10px rgba(0,255,0,0.3);
+        }
+        #btn-disparar:active { background-color: #1b5e20; transform: scale(0.95); }
+
         .j1 { color: #4fc3f7; } .j2 { color: #ff8a65; }
         #mesa-wrapper { position: relative; }
         canvas {
@@ -41,7 +60,11 @@
             <div class="j1">J1 (Azul): <span id="ptsJ1">0</span></div>
             <div class="j2">J2 (Laranja): <span id="ptsJ2">0</span></div>
         </div>
-        <div id="turno-indicador">Aguardando Conexão...</div>
+        <div id="painel-controle">
+            <div id="turno-indicador">Aguardando Conexão...</div>
+            <button id="btn-disparar" onclick="confirmarEExecutarTacada()">JÁ!</button>
+            <button id="btn-reiniciar" onclick="reiniciarPartida()">Reiniciar Jogo</button>
+        </div>
     </div>
 
     <div id="mesa-wrapper">
@@ -55,6 +78,7 @@
         const ctx = canvas.getContext("2d");
         const elementoMensagem = document.getElementById("mensagem");
         const elementoTurno = document.getElementById("turno-indicador");
+        const btnDisparar = document.getElementById("btn-disparar");
 
         const ATRITO = 0.985;
         const FORCA_MULT = 0.12;
@@ -72,6 +96,7 @@
         const discoMenor = { x: 400, y: 225, raio: 15, massa: 1.0, vx: 0, vy: 0, cor: '#e53935', visivel: true, caindo: false, escala: 1.0 };
 
         let arrastando = false;
+        let miraPronta = false;
         let controleX = 0, controleY = 0;
 
         // --- SOCKETS ---
@@ -94,6 +119,8 @@
             discoMaior.vy = dados.vy;
             jogadorAtual = dados.proximoJogador;
             emMovimento = true;
+            miraPronta = false;
+            btnDisparar.style.display = "none";
             dadosSincronizadosEnviados = false;
             atualizarIndicadorTurno();
         });
@@ -118,6 +145,28 @@
             document.getElementById("ptsJ2").innerText = pontosJ2;
         });
 
+        socket.on('jogoReiniciado', (estado) => {
+            pontosJ1 = estado.pontosJ1;
+            pontosJ2 = estado.pontosJ2;
+            jogadorAtual = estado.jogadorAtual;
+            miraPronta = false;
+            btnDisparar.style.display = "none";
+
+            document.getElementById("ptsJ1").innerText = 0;
+            document.getElementById("ptsJ2").innerText = 0;
+
+            discoMaior.x = 400; discoMaior.y = 50; discoMaior.vx = 0; discoMaior.vy = 0;
+            discoMenor.x = 400; discoMenor.y = 225; discoMenor.vx = 0; discoMenor.vy = 0;
+            discoMenor.visivel = true; discoMenor.caindo = false; discoMenor.escala = 1.0;
+
+            elementoMensagem.style.display = "none";
+            atualizarIndicadorTurno();
+        });
+
+        function reiniciarPartida() {
+            socket.emit('solicitarReinicio');
+        }
+
         function atualizarIndicadorTurno() {
             if (jogadorAtual === meuNumeroJogador) {
                 elementoTurno.innerText = "SUA VEZ DE JOGAR!";
@@ -125,6 +174,7 @@
             } else {
                 elementoTurno.innerText = `Aguardando jogada do Jogador ${jogadorAtual}...`;
                 elementoTurno.style.color = "#ffeb3b";
+                btnDisparar.style.display = "none";
             }
         }
 
@@ -164,7 +214,7 @@
                            Math.abs(discoMenor.vx) < 0.05 && Math.abs(discoMenor.vy) < 0.05;
 
             const dist = Math.hypot(coords.x - discoMaior.x, coords.y - discoMaior.y);
-            if (dist < discoMaior.raio && parado && !discoMenor.caindo) {
+            if ((dist < discoMaior.raio || miraPronta) && parado && !discoMenor.caindo) {
                 arrastando = true;
                 controleX = coords.x; controleY = coords.y;
                 e.preventDefault();
@@ -175,17 +225,24 @@
             if (arrastando) {
                 const coords = obterCoordenadas(e);
                 controleX = coords.x; controleY = coords.y;
+                miraPronta = true;
+                btnDisparar.style.display = "inline-block";
                 e.preventDefault();
             }
         }
 
         function finalizarArrasto(e) {
             if (arrastando) {
+                arrastando = false; // Apenas finaliza o gesto de arrastar, mantendo a mira salva!
+            }
+        }
+
+        function confirmarEExecutarTacada() {
+            if (miraPronta && jogadorAtual === meuNumeroJogador) {
                 const vx = (controleX - discoMaior.x) * FORCA_MULT;
                 const vy = (controleY - discoMaior.y) * FORCA_MULT;
-                arrastando = false;
-
                 const proximo = jogadorAtual === 1 ? 2 : 1;
+
                 socket.emit('realizarTacada', { vx, vy, proximoJogador: proximo });
             }
         }
@@ -250,7 +307,6 @@
                 }
             }
 
-            // Sincronização ao PARAR o movimento
             const tudoParado = discoMaior.vx === 0 && discoMaior.vy === 0 && discoMenor.vx === 0 && discoMenor.vy === 0;
             if (emMovimento && tudoParado && !dadosSincronizadosEnviados) {
                 emMovimento = false;
@@ -292,11 +348,19 @@
             ctx.beginPath(); ctx.arc(buracoJ2.x, buracoJ2.y, buracoJ2.raio, 0, Math.PI * 2);
             ctx.fillStyle = '#140c07'; ctx.fill(); ctx.strokeStyle = '#3d2314'; ctx.lineWidth = 4; ctx.stroke();
 
-            // Elástico
-            if (arrastando) {
+            // Elástico / Mira com Cursor em Cruz
+            if (miraPronta) {
                 ctx.beginPath(); ctx.moveTo(discoMaior.x, discoMaior.y); ctx.lineTo(controleX, controleY);
                 ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 3; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.setLineDash([]);
-                ctx.beginPath(); ctx.arc(controleX, controleY, 6, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+                
+                // Desenhar Cursor em Cruz no Ponto de Força
+                const tamCruz = 12;
+                ctx.beginPath();
+                ctx.moveTo(controleX - tamCruz, controleY); ctx.lineTo(controleX + tamCruz, controleY);
+                ctx.moveTo(controleX, controleY - tamCruz); ctx.lineTo(controleX, controleY + tamCruz);
+                ctx.strokeStyle = '#ffeb3b'; ctx.lineWidth = 2; ctx.stroke();
+
+                ctx.beginPath(); ctx.arc(controleX, controleY, 4, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
             }
 
             // Discos
