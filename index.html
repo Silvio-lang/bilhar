@@ -32,7 +32,6 @@
             top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10;
         }
     </style>
-    <!-- Cliente do Socket.io servido automaticamente pelo Node -->
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
@@ -60,9 +59,11 @@
         const ATRITO = 0.985;
         const FORCA_MULT = 0.12;
 
-        let meuNumeroJogador = 0; // 1 ou 2
+        let meuNumeroJogador = 0;
         let jogadorAtual = 1;
         let pontosJ1 = 0, pontosJ2 = 0;
+        let emMovimento = false;
+        let dadosSincronizadosEnviados = false;
 
         const buracoJ1 = { x: 60, y: 225, raio: 32 }; 
         const buracoJ2 = { x: 740, y: 225, raio: 32 }; 
@@ -73,7 +74,7 @@
         let arrastando = false;
         let controleX = 0, controleY = 0;
 
-        // --- SOCKETS (COMUNICAÇÃO REMOTA) ---
+        // --- SOCKETS ---
         socket.on('atribuirJogador', (data) => {
             meuNumeroJogador = data.numeroJogador;
             if (meuNumeroJogador === 0) {
@@ -92,7 +93,22 @@
             discoMaior.vx = dados.vx;
             discoMaior.vy = dados.vy;
             jogadorAtual = dados.proximoJogador;
+            emMovimento = true;
+            dadosSincronizadosEnviados = false;
             atualizarIndicadorTurno();
+        });
+
+        socket.on('sincronizarPosicoes', (dados) => {
+            discoMaior.x = dados.maior.x;
+            discoMaior.y = dados.maior.y;
+            discoMaior.vx = 0;
+            discoMaior.vy = 0;
+
+            discoMenor.x = dados.menor.x;
+            discoMenor.y = dados.menor.y;
+            discoMenor.vx = 0;
+            discoMenor.vy = 0;
+            discoMenor.visivel = dados.menor.visivel;
         });
 
         socket.on('atualizarPlacar', (estado) => {
@@ -120,9 +136,15 @@
 
             discoMaior.x = 400; discoMaior.y = 50;
             discoMaior.vx = 0; discoMaior.vy = 0;
+
+            if (meuNumeroJogador === 1) {
+                socket.emit('notificarSincronizacao', {
+                    maior: { x: discoMaior.x, y: discoMaior.y },
+                    menor: { x: discoMenor.x, y: discoMenor.y, visivel: true }
+                });
+            }
         }
 
-        // --- ENTRADA ---
         function obterCoordenadas(e) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -175,7 +197,6 @@
         canvas.addEventListener('touchmove', moverArrasto, { passive: false });
         canvas.addEventListener('touchend', finalizarArrasto);
 
-        // --- FÍSICA E DESENHO ---
         function atualizarFisica() {
             const discos = [discoMaior];
             if (discoMenor.visivel) discos.push(discoMenor);
@@ -208,7 +229,7 @@
                     const p = 2 * (nx * kx + ny * ky) / (discoMaior.massa + discoMenor.massa);
 
                     discoMaior.vx -= p * discoMenor.massa * nx; discoMaior.vy -= p * discoMenor.massa * ny;
-                    discoMenor.vx += p * discoMaior.massa * nx; discoMenor.vy += p * discoMaior.massa * ny;
+                    discoMenor.vx += p * discoMenor.massa * nx; discoMenor.vy += p * discoMenor.massa * ny;
                 }
 
                 const distJ1 = Math.hypot(discoMenor.x - buracoJ1.x, discoMenor.y - buracoJ1.y);
@@ -226,6 +247,20 @@
                         socket.emit('notificarPonto', { pontosJ1, pontosJ2 });
                     }
                     iniciarAnimacaoQueda("PONTO DO JOGADOR 1!");
+                }
+            }
+
+            // Sincronização ao PARAR o movimento
+            const tudoParado = discoMaior.vx === 0 && discoMaior.vy === 0 && discoMenor.vx === 0 && discoMenor.vy === 0;
+            if (emMovimento && tudoParado && !dadosSincronizadosEnviados) {
+                emMovimento = false;
+                dadosSincronizadosEnviados = true;
+
+                if (meuNumeroJogador === 1) {
+                    socket.emit('notificarSincronizacao', {
+                        maior: { x: discoMaior.x, y: discoMaior.y },
+                        menor: { x: discoMenor.x, y: discoMenor.y, visivel: discoMenor.visivel }
+                    });
                 }
             }
 

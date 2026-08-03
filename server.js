@@ -54,6 +54,11 @@ io.on('connection', (socket) => {
         io.emit('atualizarPlacar', estadoJogo);
     });
 
+    // Recebe as posições exatas enviadas pelo J1 e repassa para o J2
+    socket.on('notificarSincronizacao', (dadosPosicao) => {
+        socket.broadcast.emit('sincronizarPosicoes', dadosPosicao);
+    });
+
     socket.on('disconnect', () => {
         console.log(`Jogador desconectado: ${socket.id}`);
         jogadoresConectados = jogadoresConectados.filter(j => j.id !== socket.id);
