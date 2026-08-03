@@ -313,40 +313,45 @@ function desenhar() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Buraco J2 (Esquerda) com o número 2 no centro
+    // Define qual caçapa é o alvo do jogador do turno atual
+    const corBordaJ1 = (jogadorAtual === 2) ? '#ffeb3b' : '#3d2314'; // Buraco 2 ganha borda amarela se for a vez do J2
+    const larguraBordaJ1 = (jogadorAtual === 2) ? 6 : 4;
+
+    const corBordaJ2 = (jogadorAtual === 1) ? '#ffeb3b' : '#3d2314'; // Buraco 1 ganha borda amarela se for a vez do J1
+    const larguraBordaJ2 = (jogadorAtual === 1) ? 6 : 4;
+
+    // Buraco J2 (Esquerda) - Alvo do Jogador 2
     ctx.beginPath(); ctx.arc(buracoJ1.x, buracoJ1.y, buracoJ1.raio, 0, Math.PI * 2);
-    ctx.fillStyle = '#140c07'; ctx.fill(); ctx.strokeStyle = '#3d2314'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.fillStyle = '#140c07'; ctx.fill(); 
+    ctx.strokeStyle = corBordaJ1; ctx.lineWidth = larguraBordaJ1; ctx.stroke();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.fillText('2', buracoJ1.x, buracoJ1.y);
 
-    // Buraco J1 (Direita) com o número 1 no centro
+    // Buraco J1 (Direita) - Alvo do Jogador 1
     ctx.beginPath(); ctx.arc(buracoJ2.x, buracoJ2.y, buracoJ2.raio, 0, Math.PI * 2);
-    ctx.fillStyle = '#140c07'; ctx.fill(); ctx.strokeStyle = '#3d2314'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.fillStyle = '#140c07'; ctx.fill(); 
+    ctx.strokeStyle = corBordaJ2; ctx.lineWidth = larguraBordaJ2; ctx.stroke();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.fillText('1', buracoJ2.x, buracoJ2.y);
 
     // Elástico / Mira com Cursor em Cruz (Linha longa, fina e contínua)
     if (miraPronta && discoMaior.visivel && !discoMaior.caindo) {
-        // Calculamos a direção (ângulo) entre o disco e o ponto de controle
         const dx = controleX - discoMaior.x;
         const dy = controleY - discoMaior.y;
         const angulo = Math.atan2(dy, dx);
 
-        // Define um comprimento longo para a linha de mira (ex: 600 pixels)
         const comprimentoMira = 600;
         const miraFimX = discoMaior.x + Math.cos(angulo) * comprimentoMira;
         const miraFimY = discoMaior.y + Math.sin(angulo) * comprimentoMira;
 
-        // Linha contínua, longa e fina (lineWidth: 1.5)
         ctx.beginPath(); 
         ctx.moveTo(discoMaior.x, discoMaior.y); 
         ctx.lineTo(miraFimX, miraFimY);
         ctx.strokeStyle = '#00ffff'; 
         ctx.lineWidth = 1.5; 
-        ctx.setLineDash([]); // Garante que a linha é contínua
+        ctx.setLineDash([]); 
         ctx.stroke();
         
-        // Cursor em cruz (permanece no ponto exato do toque/controle de força)
         const tamCruz = 12;
         ctx.beginPath();
         ctx.moveTo(controleX - tamCruz, controleY); ctx.lineTo(controleX + tamCruz, controleY);
@@ -368,7 +373,6 @@ function desenhar() {
         ctx.fillStyle = discoMenor.cor; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 * discoMenor.escala; ctx.stroke();
     }
 }
-
 function loop() {
     atualizarFisica();
     desenhar();
