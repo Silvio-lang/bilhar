@@ -1,4 +1,4 @@
 git add .
-git commit -m "Adiciona mira em cruz e botao JA para confirmacao da tacada"
+git commit -m "Separa a logica no script.js e aplica falta ao encaçapar a bola azul"
 git push origin main
 pause

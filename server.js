@@ -9,6 +9,9 @@ const io = new Server(server, {
     cors: { origin: "*" }
 });
 
+// Permite que o servidor entregue arquivos estáticos (como o script.js)
+app.use(express.static(__dirname));
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
