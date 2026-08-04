@@ -473,7 +473,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Eventos do Slider de Força (Ideal para Celulares)
-// Eventos do Slider de Força (Apenas ajusta a força e a espessura da linha)
+// Eventos do Slider de Força (Apenas calibra a força, sem disparar ao soltar)
 if (sliderForca) {
     sliderForca.addEventListener('input', (e) => {
         if (!miraPronta || emMovimento) return;
