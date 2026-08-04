@@ -200,6 +200,13 @@ socket.on('atribuirJogador', (num) => {
 
 socket.on('atualizarEstado', (estado) => {
     jogadorAtual = estado.jogadorAtual;
+    
+    // Esconde a mensagem de "Conectando ao Servidor" assim que o estado chega
+    const telaEspera = document.getElementById("telaEspera") || document.getElementById("statusConexao");
+    if (telaEspera) {
+        telaEspera.style.display = "none";
+    }
+
     if (estado.modoTreino !== undefined) {
         modoTreino = estado.modoTreino;
         if (!modoTreino && bannerModo) {
@@ -283,4 +290,9 @@ window.addEventListener("load", () => {
     }
 
     loop();
+});
+socket.on('connect', () => {
+    // Procura e oculta qualquer overlay/aviso de carregamento
+    const elementosEspera = document.querySelectorAll('#telaEspera, #statusConexao, .overlay-espera');
+    elementosEspera.forEach(el => el.style.display = 'none');
 });
