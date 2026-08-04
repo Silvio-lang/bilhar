@@ -1,14 +1,19 @@
 // Configuração de Comunicação Socket.io
 const socket = io();
 
-// Estado do Jogo e Redes
+// Estado do Jogo
 let meuNumeroJogador = null;
 let jogadorAtual = 1;
 let modoTreino = false;
 let mesaBloqueada = false;
 
-// Elementos de UI e Canvas (inicializados no carregamento)
-let canvas, ctx, btnDisparar, sliderForca, painelForca, bannerModo;
+// Elementos de UI e Canvas
+let canvas = document.getElementById("canvasMesa");
+let ctx = canvas ? canvas.getContext("2d") : null;
+let btnDisparar = document.getElementById("btnDisparar");
+let sliderForca = document.getElementById("sliderForca");
+let painelForca = document.getElementById("painel-forca");
+let bannerModo = document.getElementById("bannerModo");
 
 // Física e Posições
 const FORCA_MULT = 0.15;
@@ -27,7 +32,40 @@ let discoMenor = { x: 500, y: 200, vx: 0, vy: 0, raio: 14, cor: '#e74c3c', visiv
 let buracoJ1 = { x: 60, y: 200, raio: 30 };  // Alvo do Jogador 2
 let buracoJ2 = { x: 740, y: 200, raio: 30 }; // Alvo do Jogador 1
 
-// Funções de Auxílio de Coordenadas
+// Função global para o botão de reiniciar do HTML
+function reiniciarPartida() {
+    if (socket) {
+        socket.emit('reiniciarPartida');
+    }
+}
+
+// Oculta avisos de carregamento ao conectar
+function esconderCarregamento() {
+    const ids = ["telaEspera", "statusConexao", "mensagemConexao", "aguardandoServidor"];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+    });
+}
+
+socket.on('connect', esconderCarregamento);
+
+socket.on('atribuirJogador', (num) => {
+    meuNumeroJogador = num;
+});
+
+socket.on('atualizarEstado', (estado) => {
+    esconderCarregamento();
+    jogadorAtual = estado.jogadorAtual;
+    if (estado.modoTreino !== undefined) {
+        modoTreino = estado.modoTreino;
+        if (!modoTreino && bannerModo) {
+            bannerModo.style.display = "none";
+        }
+    }
+});
+
+// Funções de Coordenadas
 function obterCoordenadas(e) {
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -39,7 +77,7 @@ function obterCoordenadas(e) {
     };
 }
 
-// Manipulação do Arrasto / Mira na Mesa
+// Manipulação do Arrasto / Mira
 function iniciarArrasto(e) {
     if (emMovimento || (jogadorAtual !== meuNumeroJogador && !modoTreino)) return;
 
@@ -80,7 +118,6 @@ function finalizarArrasto(e) {
     }
 }
 
-// Confirmação e Execução do Disparo
 function confirmarEExecutarTacada() {
     if (miraPronta && (jogadorAtual === meuNumeroJogador || modoTreino) && !emMovimento) {
         const vx = (controleX - discoMaior.x) * FORCA_MULT;
@@ -95,7 +132,6 @@ function confirmarEExecutarTacada() {
     }
 }
 
-// Atualização da Física das Bolas
 function atualizarFisica() {
     if (discoMaior.visivel) {
         discoMaior.x += discoMaior.vx;
@@ -114,7 +150,6 @@ function atualizarFisica() {
     emMovimento = Math.hypot(discoMaior.vx, discoMaior.vy) > 0.05 || Math.hypot(discoMenor.vx, discoMenor.vy) > 0.05;
 }
 
-// Renderização Contínua no Canvas
 function desenhar() {
     if (!ctx || !canvas) return;
 
@@ -186,77 +221,14 @@ function desenhar() {
     }
 }
 
-// Ciclo de Animação Principal
 function loop() {
     atualizarFisica();
     desenhar();
     requestAnimationFrame(loop);
 }
 
-// Eventos de Conexão Socket.io
-socket.on('atribuirJogador', (num) => {
-    meuNumeroJogador = num;
-});
-
-socket.on('atualizarEstado', (estado) => {
-    jogadorAtual = estado.jogadorAtual;
-
-    // Esconde a mensagem de espera assim que os dados chegam do servidor
-    const telaEspera = document.getElementById("telaEspera") || document.getElementById("statusConexao");
-    if (telaEspera) {
-        telaEspera.style.display = "none";
-    }
-
-    if (estado.modoTreino !== undefined) {
-        modoTreino = estado.modoTreino;
-        if (!modoTreino && bannerModo) {
-            bannerModo.style.display = "none";
-        }
-    }
-});
-
-// Função chamada pelo botão do HTML para reiniciar a partida
-function reiniciarPartida() {
-    if (socket) {
-        socket.emit('reiniciarPartida');
-    }
-}
-
-// Eventos do Teclado
-document.addEventListener('keydown', (e) => {
-    if (!miraPronta || emMovimento || (jogadorAtual !== meuNumeroJogador && !modoTreino)) return;
-
-    const passoAngulo = 0.03;
-    const passoForca = 10;
-
-    let dx = controleX - discoMaior.x;
-    let dy = controleY - discoMaior.y;
-    let raioAtual = Math.hypot(dx, dy);
-    let anguloAtual = Math.atan2(dy, dx);
-
-    if (e.key === '+' || e.key === '=') {
-        raioAtual = Math.min(200, raioAtual + passoForca);
-    } else if (e.key === '-' || e.key === '_') {
-        raioAtual = Math.max(20, raioAtual - passoForca);
-    } else if (e.key === 'ArrowLeft') {
-        anguloAtual -= passoAngulo;
-    } else if (e.key === 'ArrowRight') {
-        anguloAtual += passoAngulo;
-    } else if (e.key === 'Enter' || e.key === ' ') {
-        confirmarEExecutarTacada();
-        return;
-    }
-
-    forcaAtual = raioAtual;
-    if (sliderForca) sliderForca.value = forcaAtual;
-
-    controleX = discoMaior.x + Math.cos(anguloAtual) * forcaAtual;
-    controleY = discoMaior.y + Math.sin(anguloAtual) * forcaAtual;
-    desenhar();
-});
-
-// Inicialização dos elementos após o carregamento da tela
-window.addEventListener("load", () => {
+// Configuração dos Eventos e Inicialização Imediata
+function inicializar() {
     canvas = document.getElementById("canvasMesa");
     if (canvas) ctx = canvas.getContext("2d");
 
@@ -296,10 +268,13 @@ window.addEventListener("load", () => {
         canvas.addEventListener('touchend', finalizarArrasto);
     }
 
+    // Inicia o desenho imediatamente
     loop();
-});
-socket.on('connect', () => {
-    // Procura e oculta qualquer overlay/aviso de carregamento
-    const elementosEspera = document.querySelectorAll('#telaEspera, #statusConexao, .overlay-espera');
-    elementosEspera.forEach(el => el.style.display = 'none');
-});
+}
+
+// Executa a inicialização assim que o script é lido
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializar);
+} else {
+    inicializar();
+}
