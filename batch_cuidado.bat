@@ -1,4 +1,4 @@
 git add .
-git commit -m "Implementa Modo Treino e trava de mesa privada para o Jogador 1"
+git commit -m "Implementa slider de forca, ajuste de linha e fluxo do modo treino"
 git push origin main
 pause

@@ -4,7 +4,8 @@ const ctx = canvas.getContext("2d");
 const elementoMensagem = document.getElementById("mensagem");
 const elementoTurno = document.getElementById("turno-indicador");
 const btnDisparar = document.getElementById("btn-disparar");
-
+const sliderForca = document.getElementById("sliderForca");
+const painelForca = document.getElementById("painel-forca");
 
 const ATRITO = 0.985;
 const FORCA_MULT = 0.12;
@@ -16,6 +17,7 @@ let pontosJ1 = 0, pontosJ2 = 0;
 let emMovimento = false;
 let dadosSincronizadosEnviados = false;
 let resetPendente = false;
+let forcaAtual = 80; // Valor padrão de força
 
 let modoTreino = true;
 let mesaBloqueada = false;
@@ -147,27 +149,31 @@ function atualizarIndicadorTurno() {
     }
 }
 
-// Nova inteligência de reposicionamento baseada nas regras de bilhar
+// Inteligência de reposicionamento aprimorada para Modo Treino e Partida
 function tratarReposicionamento() {
+    // Se a vermelha caiu (ponto), repõe a vermelha no centro e a azul na base
     if (!discoMenor.visivel) {
-        // A vermelha caiu: repõe a vermelha em nova posição e a azul na base
-        const desvioY = (Math.random() - 0.5) * 160;
-        discoMenor.x = 400; discoMenor.y = 225 + desvioY;
-        discoMenor.visivel = true; discoMenor.caindo = false; discoMenor.escala = 1.0;
-        
-        discoMaior.x = 400; discoMaior.y = 50;
-        discoMaior.visivel = true; discoMaior.caindo = false; discoMaior.escala = 1.0;
-    } 
-    else if (!discoMaior.visivel) {
-        // Apenas a azul caiu (Falta): repõe apenas a azul, a vermelha fica intocável
-        discoMaior.x = 400; discoMaior.y = 50;
-        discoMaior.visivel = true; discoMaior.caindo = false; discoMaior.escala = 1.0;
+        discoMenor.x = 400; 
+        discoMenor.y = 225;
+        discoMenor.visivel = true; 
+        discoMenor.caindo = false; 
+        discoMenor.escala = 1.0;
+    }
+    
+    // Se a azul caiu (falta), repõe apenas a azul
+    if (!discoMaior.visivel) {
+        discoMaior.x = 400; 
+        discoMaior.y = 50;
+        discoMaior.visivel = true; 
+        discoMaior.caindo = false; 
+        discoMaior.escala = 1.0;
     }
 
     discoMaior.vx = 0; discoMaior.vy = 0;
     discoMenor.vx = 0; discoMenor.vy = 0;
 
-    if (meuNumeroJogador === 1) {
+    // Se estiver em jogo normal com 2 jogadores, sincroniza com o servidor
+    if (meuNumeroJogador === 1 && !modoTreino && !mesaBloqueada) {
         socket.emit('notificarSincronizacao', {
             maior: { x: discoMaior.x, y: discoMaior.y, visivel: discoMaior.visivel, caindo: discoMaior.caindo, escala: discoMaior.escala },
             menor: { x: discoMenor.x, y: discoMenor.y, visivel: discoMenor.visivel, caindo: discoMenor.caindo, escala: discoMenor.escala }
@@ -197,6 +203,10 @@ function iniciarArrasto(e) {
     if ((dist < discoMaior.raio || miraPronta) && parado && !discoMenor.caindo && !discoMaior.caindo && discoMaior.visivel) {
         arrastando = true;
         controleX = coords.x; controleY = coords.y;
+        
+        // Exibe o painel do slider de força ao tocar
+        if (painelForca) painelForca.style.display = "block";
+
         e.preventDefault();
     }
 }
@@ -207,6 +217,10 @@ function moverArrasto(e) {
         controleX = coords.x; controleY = coords.y;
         miraPronta = true;
         btnDisparar.style.display = "inline-block";
+
+        // Exibe o painel do slider de força enquanto ajusta
+        if (painelForca) painelForca.style.display = "block";
+
         e.preventDefault();
     }
 }
@@ -222,10 +236,14 @@ function confirmarEExecutarTacada() {
         const vx = (controleX - discoMaior.x) * FORCA_MULT;
         const vy = (controleY - discoMaior.y) * FORCA_MULT;
         
-        // Se estiver sozinho em treino, a vez continua sendo do Jogador 1
         const proximo = (modoTreino || mesaBloqueada) ? 1 : (jogadorAtual === 1 ? 2 : 1);
 
         socket.emit('realizarTacada', { vx, vy, proximoJogador: proximo, autor: meuNumeroJogador });
+
+        // Esconde o painel do slider após disparar
+        if (painelForca) {
+            painelForca.style.display = "none";
+        }
     }
 }
 
@@ -366,7 +384,7 @@ function desenhar() {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.fillText('1', buracoJ2.x, buracoJ2.y);
 
-    // Elástico / Mira com Cursor em Cruz (Linha longa, fina e contínua)
+    // Elástico / Mira com Cursor em Cruz
     if (miraPronta && discoMaior.visivel && !discoMaior.caindo) {
         const dx = controleX - discoMaior.x;
         const dy = controleY - discoMaior.y;
@@ -376,14 +394,18 @@ function desenhar() {
         const miraFimX = discoMaior.x + Math.cos(angulo) * comprimentoMira;
         const miraFimY = discoMaior.y + Math.sin(angulo) * comprimentoMira;
 
+        // Ajusta a largura da linha de mira proporcionalmente à força escolhida (1.8px até 9px)
+        const larguraLinhaMira = 1 + (forcaAtual / 25);
+
         ctx.beginPath(); 
         ctx.moveTo(discoMaior.x, discoMaior.y); 
         ctx.lineTo(miraFimX, miraFimY);
         ctx.strokeStyle = '#00ffff'; 
-        ctx.lineWidth = 1.5; 
+        ctx.lineWidth = larguraLinhaMira; 
         ctx.setLineDash([]); 
         ctx.stroke();
         
+        // Cursor em cruz (permanece no ponto exato do toque/controle de força)
         const tamCruz = 12;
         ctx.beginPath();
         ctx.moveTo(controleX - tamCruz, controleY); ctx.lineTo(controleX + tamCruz, controleY);
@@ -405,10 +427,83 @@ function desenhar() {
         ctx.fillStyle = discoMenor.cor; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 * discoMenor.escala; ctx.stroke();
     }
 }
+
+// Ciclo principal de animação e atualização contínua do Canvas
 function loop() {
-    atualizarFisica();
-    desenhar();
+    atualizarFisica(); // Atualiza posições, velocidades e colisões
+    desenhar();        // Redesenha a mesa e as bolas na tela
     requestAnimationFrame(loop);
 }
 
+// Inicia o ciclo de animação
 loop();
+
+// Controle de Mira e Força via Teclado (+ e - para força, setas para mira, Enter para disparar)
+document.addEventListener('keydown', (e) => {
+    if (!miraPronta || emMovimento || jogadorAtual !== meuNumeroJogador) return;
+
+    const passoAngulo = 0.03; // Sensibilidade de rotação
+    const passoForca = 10;    // Sensibilidade das teclas + e -
+
+    let dx = controleX - discoMaior.x;
+    let dy = controleY - discoMaior.y;
+    let raioAtual = Math.hypot(dx, dy);
+    let anguloAtual = Math.atan2(dy, dx);
+
+    if (e.key === '+' || e.key === '=') {
+        raioAtual = Math.min(200, raioAtual + passoForca);
+    } else if (e.key === '-' || e.key === '_') {
+        raioAtual = Math.max(20, raioAtual - passoForca);
+    } else if (e.key === 'ArrowLeft') {
+        anguloAtual -= passoAngulo;
+    } else if (e.key === 'ArrowRight') {
+        anguloAtual += passoAngulo;
+    } else if (e.key === 'Enter' || e.key === ' ') {
+        confirmarEExecutarTacada();
+        if (painelForca) painelForca.style.display = "none";
+        return;
+    }
+
+    forcaAtual = raioAtual;
+    if (sliderForca) sliderForca.value = forcaAtual;
+
+    controleX = discoMaior.x + Math.cos(anguloAtual) * forcaAtual;
+    controleY = discoMaior.y + Math.sin(anguloAtual) * forcaAtual;
+    desenhar();
+});
+
+// Eventos do Slider de Força (Ideal para Celulares)
+if (sliderForca) {
+    // Enquanto arrasta o slider: ajusta a força e a espessura da linha em tempo real
+    sliderForca.addEventListener('input', (e) => {
+        if (!miraPronta || emMovimento) return;
+
+        forcaAtual = parseFloat(e.target.value);
+        let dx = controleX - discoMaior.x;
+        let dy = controleY - discoMaior.y;
+        let anguloAtual = Math.atan2(dy, dx);
+
+        controleX = discoMaior.x + Math.cos(anguloAtual) * forcaAtual;
+        controleY = discoMaior.y + Math.sin(anguloAtual) * forcaAtual;
+
+        desenhar();
+    });
+
+    // Ao soltar o slider (dedo levanta no celular ou mouse solta no PC): dispara a tacada!
+    const dispararAoSoltar = () => {
+        if (miraPronta && !emMovimento && jogadorAtual === meuNumeroJogador) {
+            confirmarEExecutarTacada();
+            if (painelForca) painelForca.style.display = "none";
+        }
+    };
+
+    sliderForca.addEventListener('change', dispararAoSoltar);
+    sliderForca.addEventListener('touchend', dispararAoSoltar);
+}
+
+// Garante que o painel de força apareça sempre que a mira for ativada no Canvas
+canvas.addEventListener('pointerdown', () => {
+    if (!emMovimento && jogadorAtual === meuNumeroJogador && painelForca) {
+        painelForca.style.display = "block";
+    }
+});
