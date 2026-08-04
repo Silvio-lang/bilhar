@@ -499,7 +499,6 @@ if (sliderForca) {
 
     sliderForca.addEventListener('change', dispararAoSoltar);
     sliderForca.addEventListener('touchend', dispararAoSoltar);
-}
 
 // Garante que o painel de força apareça sempre que a mira for ativada no Canvas
 canvas.addEventListener('pointerdown', () => {
