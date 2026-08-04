@@ -473,8 +473,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Eventos do Slider de Força (Ideal para Celulares)
+// Eventos do Slider de Força (Apenas ajusta a força e a espessura da linha)
 if (sliderForca) {
-    // Enquanto arrasta o slider: ajusta a força e a espessura da linha em tempo real
     sliderForca.addEventListener('input', (e) => {
         if (!miraPronta || emMovimento) return;
 
@@ -488,7 +488,7 @@ if (sliderForca) {
 
         desenhar();
     });
-
+}
     // Ao soltar o slider (dedo levanta no celular ou mouse solta no PC): dispara a tacada!
     const dispararAoSoltar = () => {
         if (miraPronta && !emMovimento && jogadorAtual === meuNumeroJogador) {
