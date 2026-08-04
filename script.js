@@ -200,8 +200,8 @@ socket.on('atribuirJogador', (num) => {
 
 socket.on('atualizarEstado', (estado) => {
     jogadorAtual = estado.jogadorAtual;
-    
-    // Esconde a mensagem de "Conectando ao Servidor" assim que o estado chega
+
+    // Esconde a mensagem de espera assim que os dados chegam do servidor
     const telaEspera = document.getElementById("telaEspera") || document.getElementById("statusConexao");
     if (telaEspera) {
         telaEspera.style.display = "none";
@@ -214,6 +214,13 @@ socket.on('atualizarEstado', (estado) => {
         }
     }
 });
+
+// Função chamada pelo botão do HTML para reiniciar a partida
+function reiniciarPartida() {
+    if (socket) {
+        socket.emit('reiniciarPartida');
+    }
+}
 
 // Eventos do Teclado
 document.addEventListener('keydown', (e) => {
