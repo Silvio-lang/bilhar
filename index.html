@@ -74,14 +74,14 @@
 
 <div id="painel-controle" style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: nowrap; overflow-x: auto; padding: 5px 0;">
     <div id="turno-indicador" style="width: 140px; text-align: center; font-weight: bold; font-size: 13px; white-space: nowrap;">
-    Conectando... </div>
+     </div>
     
-    <!-- Slider de Força compacto -->
+<!-- SLIDER DE FORÇA COMPACTO -->
     <div id="painel-forca" style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
         <label for="sliderForca" style="color: #ffffff; font-size: 13px; font-weight: bold; font-family: sans-serif;">
-            Força:
+            <span id="valorForca">100</span>
         </label>
-        <input type="range" id="sliderForca" min="20" max="200" value="80" style="width: 100px;">
+        <input type="range" id="sliderForca" min="50" max="300" value="80" style="width: 100px;" oninput="document.getElementById('valorForca').innerText = String(this.value).padStart(3, '0')">
     </div>
 
     <button id="btn-disparar" onclick="confirmarEExecutarTacada()" style="display: inline-block; padding: 4px 8px; font-size: 13px; white-space: nowrap;">JÁ!</button>
