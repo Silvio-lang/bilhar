@@ -35,6 +35,7 @@ let miraPronta = false;
 let controleX = 0, controleY = 0;
 
 // --- FUNÇÃO AUXILIAR DE INDICADOR DE TURNO ---
+
 function atualizarIndicadorTurno() {
     const turnoIndicador = document.getElementById('turno-indicador');
     if (!turnoIndicador) return;
@@ -44,11 +45,20 @@ function atualizarIndicadorTurno() {
         turnoIndicador.style.color = "#ffffff";
         return;
     }
+
+    if (jogadorAtual === meuNumeroJogador) {
+        turnoIndicador.innerText = `J${meuNumeroJogador}: SUA VEZ`;
+        turnoIndicador.style.color = "#00FF00";
+    } else {
+        turnoIndicador.innerText = `J${meuNumeroJogador}: AGUARDE`;
+        turnoIndicador.style.color = "#FFCC00";
+    }
 }
 
 // --- SOCKETS ---
 socket.on('atribuirJogador', (data) => {
-    meuNumeroJogador = data.numeroJogador;
+    // Converte o texto recebido do servidor para um número inteiro
+    meuNumeroJogador = Number(data.numeroJogador);
     mesaBloqueada = data.mesaBloqueada;
     
     // Atualiza o identificador fixo do jogador
@@ -66,13 +76,16 @@ socket.on('atribuirJogador', (data) => {
         }
     }
 
-    if (meuNumeroJogador !== 1 && btnTrava) {
+    if (meuNumeroJogador !== 1 && typeof btnTrava !== 'undefined' && btnTrava) {
         btnTrava.style.display = "none";
     }
     atualizarIndicadorTurno();
 });
 
+let jogoProntoFlag = false;
+
 socket.on('jogoPronto', () => {
+    jogoProntoFlag = true;
     elementoMensagem.style.display = "none";
     atualizarIndicadorTurno();
 });
@@ -138,10 +151,12 @@ socket.on('statusTravaAtualizado', (dados) => {
 });
 
 socket.on('turnoAtualizado', (estado) => {
-    jogadorAtual = estado.jogadorAtual;
+    // O Number() garante que, mesmo se o servidor enviar texto ("2"), 
+    // ele seja convertido para o número inteiro 2, validando a troca de cor!
+    jogadorAtual = Number(estado.jogadorAtual) || Number(estado.proximoJogador) || 1;
+    
     atualizarIndicadorTurno();
 });
-
 function alternarTravaTreino() {
     if (meuNumeroJogador !== 1) return; // Apenas J1 pode travar
     mesaBloqueada = !mesaBloqueada;
@@ -156,14 +171,26 @@ socket.on('statusTravaAtualizado', (dados) => {
     }
 });
 
-    document.getElementById("ptsJ1").innerText = 0;
+document.getElementById("ptsJ1").innerText = 0;
     document.getElementById("ptsJ2").innerText = 0;
 
-    discoMaior.x = 400; discoMaior.y = 50; discoMaior.vx = 0; discoMaior.vy = 0;
-    discoMaior.visivel = true; discoMaior.caindo = false; discoMaior.escala = 1.0;
+    // Disco Maior (Tacada) posicionado na borda inferior (y = 400)
+    discoMaior.x = 400; 
+    discoMaior.y = 400; 
+    discoMaior.vx = 0; 
+    discoMaior.vy = 0;
+    discoMaior.visivel = true; 
+    discoMaior.caindo = false; 
+    discoMaior.escala = 1.0;
 
-    discoMenor.x = 400; discoMenor.y = 225; discoMenor.vx = 0; discoMenor.vy = 0;
-    discoMenor.visivel = true; discoMenor.caindo = false; discoMenor.escala = 1.0;
+    // Disco Menor no centro da mesa (y = 225)
+    discoMenor.x = 400; 
+    discoMenor.y = 225; 
+    discoMenor.vx = 0; 
+    discoMenor.vy = 0;
+    discoMenor.visivel = true; 
+    discoMenor.caindo = false; 
+    discoMenor.escala = 1.0;
 
     elementoMensagem.style.display = "none";
     atualizarIndicadorTurno();
@@ -236,10 +263,13 @@ function obterCoordenadas(e) {
 }
 
 function iniciarArrasto(e) {
+    // Impede a jogada na sala aberta se o Jogador 2 ainda não entrou
+    if (!modoTreino && !jogoProntoFlag) return;
+
     if (jogadorAtual !== meuNumeroJogador) return;
 
     const coords = obterCoordenadas(e);
-// Limite de parada ajustado de 0.05 para 0.20 para evitar o arrasto lento
+    // Limite de parada ajustado de 0.05 para 0.20 para evitar o arrasto lento
     const parado = Math.abs(discoMaior.vx) < 0.20 && Math.abs(discoMaior.vy) < 0.20 &&
                    Math.abs(discoMenor.vx) < 0.20 && Math.abs(discoMenor.vy) < 0.20;
 
@@ -284,8 +314,19 @@ function finalizarArrasto(e) {
 
 function confirmarEExecutarTacada() {
     if (miraPronta && jogadorAtual === meuNumeroJogador) {
-        const vx = (controleX - discoMaior.x) * FORCA_MULT;
-        const vy = (controleY - discoMaior.y) * FORCA_MULT;
+        // Obtém o valor numérico atual definido no slider
+        const elementoSlider = document.getElementById('sliderForca');
+        const valorSlider = elementoSlider ? parseFloat(elementoSlider.value) : 100;
+        
+        // Define o limite máximo que o slider pode atingir (padrão 100 se não estiver definido no HTML)
+        const maxSlider = elementoSlider && elementoSlider.max ? parseFloat(elementoSlider.max) : 100;
+        
+        // Calcula a proporção da força (ex: se o slider estiver em 50 de 100, a proporção é 0.5)
+        const proporcaoForca = valorSlider / maxSlider;
+
+        // Aplica a proporção do slider sobre a força do vetor de mira
+        const vx = (controleX - discoMaior.x) * FORCA_MULT * proporcaoForca;
+        const vy = (controleY - discoMaior.y) * FORCA_MULT * proporcaoForca;
         
         const proximo = (modoTreino || mesaBloqueada) ? 1 : (jogadorAtual === 1 ? 2 : 1);
 
@@ -293,7 +334,7 @@ function confirmarEExecutarTacada() {
 
         // Esconde o painel do slider após disparar
         if (painelForca) {
-            painelForca.style.display = "flex";
+            painelForca.style.display = "none";
         }
     }
 }
@@ -342,7 +383,7 @@ function atualizarFisica() {
         }
     }
 
-    discos.forEach(d => {
+ discos.forEach(d => {
         if (!d.caindo) {
             const distJ1 = Math.hypot(d.x - buracoJ1.x, d.y - buracoJ1.y);
             const distJ2 = Math.hypot(d.x - buracoJ2.x, d.y - buracoJ2.y);
@@ -350,10 +391,20 @@ function atualizarFisica() {
             if (distJ1 <= buracoJ1.raio || distJ2 <= buracoJ2.raio) {
                 if (d === discoMenor) {
                     if (distJ1 <= buracoJ1.raio) {
-                        if (meuNumeroJogador === 1) { pontosJ2++; socket.emit('notificarPonto', { pontosJ1, pontosJ2 }); }
+                        if (meuNumeroJogador === 1) { 
+                            pontosJ2++; 
+                            socket.emit('notificarPonto', { pontosJ1, pontosJ2 }); 
+                            // Alterna o turno para o Jogador 2 após o ponto
+                            socket.emit('notificarTrocaTurno', { proximoJogador: 2 });
+                        }
                         iniciarAnimacaoQueda(d, "PONTO DO JOGADOR 2!");
                     } else if (distJ2 <= buracoJ2.raio) {
-                        if (meuNumeroJogador === 1) { pontosJ1++; socket.emit('notificarPonto', { pontosJ1, pontosJ2 }); }
+                        if (meuNumeroJogador === 1) { 
+                            pontosJ1++; 
+                            socket.emit('notificarPonto', { pontosJ1, pontosJ2 }); 
+                            // Alterna o turno para o Jogador 2 após o ponto
+                            socket.emit('notificarTrocaTurno', { proximoJogador: 2 });
+                        }
                         iniciarAnimacaoQueda(d, "PONTO DO JOGADOR 1!");
                     }
                 } else if (d === discoMaior) {
@@ -361,6 +412,9 @@ function atualizarFisica() {
                         if (autorUltimaTacada === 1) pontosJ1--;
                         if (autorUltimaTacada === 2) pontosJ2--;
                         socket.emit('notificarPonto', { pontosJ1, pontosJ2 });
+                        // Em caso de falta, passa a vez para o adversário de quem cometeu a falta
+                        const proximo = (autorUltimaTacada === 1) ? 2 : 1;
+                        socket.emit('notificarTrocaTurno', { proximoJogador: proximo });
                     }
                     iniciarAnimacaoQueda(d, `FALTA! JOGADOR ${autorUltimaTacada} PERDEU 1 PONTO!`);
                 }
@@ -368,12 +422,16 @@ function atualizarFisica() {
         }
     });
 
- const tudoParado = discoMaior.vx === 0 && discoMaior.vy === 0 && discoMenor.vx === 0 && discoMenor.vy === 0;
-    if (emMovimento && tudoParado && !dadosSincronizadosEnviados) {
-        emMovimento = false;
-        dadosSincronizadosEnviados = true;
+const tudoParado = discoMaior.vx === 0 && discoMaior.vy === 0 && discoMenor.vx === 0 && discoMenor.vy === 0;
+if (emMovimento && tudoParado && !dadosSincronizadosEnviados) {
+    emMovimento = false;
+    dadosSincronizadosEnviados = true;
 
-        // Dispara a troca de turno para o outro jogador ao finalizar o movimento
+    // Se for modo treino, mantém a vez com você e reseta para a próxima jogada
+    if (modoTreino) {
+        jogadorAtual = meuNumeroJogador;
+    } else {
+        // No modo online multiplayer, altera o turno normalmente
         if (jogadorAtual === meuNumeroJogador) {
             const proximo = jogadorAtual === 1 ? 2 : 1;
             socket.emit('notificarTrocaTurno', { proximoJogador: proximo });
@@ -386,6 +444,7 @@ function atualizarFisica() {
             });
         }
     }
+}
 
     discos.forEach(d => {
         if (d.caindo) {
@@ -480,12 +539,18 @@ function desenhar() {
         }
     }
 
+    // Desenha o Disco Maior (com alternância de cor: Branco para J1 e Laranja para J2)
     if (discoMaior.visivel) {
         ctx.beginPath(); const r = discoMaior.raio * discoMaior.escala;
         ctx.arc(discoMaior.x, discoMaior.y, Math.max(0, r), 0, Math.PI * 2);
-        ctx.fillStyle = discoMaior.cor; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 * discoMaior.escala; ctx.stroke();
+        
+        // Se for o Jogador 2, pinta de Laranja (#ff6600), caso contrário usa a cor padrão (Branca)
+        ctx.fillStyle = (jogadorAtual === 2) ? '#ff6600' : (discoMaior.cor || '#ffffff'); 
+        ctx.fill(); 
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 * discoMaior.escala; ctx.stroke();
     }
 
+    // Desenha o Disco Menor
     if (discoMenor.visivel) {
         ctx.beginPath(); const r = discoMenor.raio * discoMenor.escala;
         ctx.arc(discoMenor.x, discoMenor.y, Math.max(0, r), 0, Math.PI * 2);
