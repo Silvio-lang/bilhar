@@ -49,11 +49,22 @@ io.on('connection', (socket) => {
         io.emit('jogoReiniciado', estadoJogo);
     }
 
+    // Recebe o comando do botão de trava vindo do cliente
     socket.on('alternarTravaMesa', (bloqueado) => {
         if (socket.id === jogador1SocketId) {
             mesaBloqueada = bloqueado;
             io.emit('statusTravaAtualizado', { mesaBloqueada });
         }
+    });
+
+    // Novo: Recebe a notificação de troca de turno enviada ao finalizar a tacada
+    socket.on('notificarTrocaTurno', (dados) => {
+        if (dados && dados.proximoJogador) {
+            estadoJogo.jogadorAtual = dados.proximoJogador;
+        } else {
+            estadoJogo.jogadorAtual = estadoJogo.jogadorAtual === 1 ? 2 : 1;
+        }
+        io.emit('turnoAtualizado', estadoJogo);
     });
 
     socket.on('realizarTacada', (dados) => {

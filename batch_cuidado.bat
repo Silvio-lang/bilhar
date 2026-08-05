@@ -1,4 +1,4 @@
-git add index.html script.js
-git commit -m "Fixa painel do slider para evitar deslocamento da mesa e remove disparo automatico ao soltar"
-git push origin main
+git add script.js index.html
+git commit -m "Restauração da última versão que funcionou e538725"
+git push origin main --force
 pause

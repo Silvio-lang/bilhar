@@ -55,25 +55,39 @@
 </head>
 <body>
 
+<div style="display: flex; align-items: center; gap: 10px;">
+    <!-- Identificador fixo de quem é o jogador nesta tela -->
+    <div id="identificador-jogador" style="font-weight: bold; font-size: 13px; color: #1e88e5;">
+        Identificando...
+    </div>
+
+    <!-- Indicador de turno de largura travada -->
+    <div id="turno-indicador" style="width: 110px; min-width: 110px; max-width: 110px; text-align: center; font-weight: bold; font-size: 12px; white-space: nowrap;">
+        Aguardando...
+    </div>
+</div>
     <div id="placar-container">
         <div id="placar">
             <div class="j1">J1 (Azul): <span id="ptsJ1">0</span></div>
             <div class="j2">J2 (Laranja): <span id="ptsJ2">0</span></div>
         </div>
-        <div id="painel-controle">
-            <div id="turno-indicador">Aguardando Conexão...</div>
-            <button id="btn-disparar" onclick="confirmarEExecutarTacada()">JÁ!</button>
-            <button id="btn-trava" onclick="alternarTravaTreino()">Modo: Aberto a Desafiantes</button>
-            <button id="btn-reiniciar" onclick="reiniciarPartida()">Reiniciar Jogo</button>
-        </div>
 
-       <div id="painel-forca" style="margin: 15px auto; text-align: center;">
-          <label for="sliderForca" style="color: #ffffff; font-size: 14px; font-weight: bold; font-family: sans-serif;">
-           Força da Tacada:
-          </label><br>
-          <input type="range" id="sliderForca" min="20" max="200" value="80" style="width: 80%; max-width: 320px; margin-top: 8px;">
-      </div>
+<div id="painel-controle" style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: nowrap; overflow-x: auto; padding: 5px 0;">
+    <div id="turno-indicador" style="width: 140px; text-align: center; font-weight: bold; font-size: 13px; white-space: nowrap;">
+    Conectando... </div>
+    
+    <!-- Slider de Força compacto -->
+    <div id="painel-forca" style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+        <label for="sliderForca" style="color: #ffffff; font-size: 13px; font-weight: bold; font-family: sans-serif;">
+            Força:
+        </label>
+        <input type="range" id="sliderForca" min="20" max="200" value="80" style="width: 100px;">
     </div>
+
+    <button id="btn-disparar" onclick="confirmarEExecutarTacada()" style="display: inline-block; padding: 4px 8px; font-size: 13px; white-space: nowrap;">JÁ!</button>
+    <button id="btn-trava" onclick="alternarTravaTreino()" style="padding: 4px 8px; font-size: 13px; white-space: nowrap;">Modo: Aberto</button>
+    <button id="btn-reiniciar" onclick="reiniciarPartida()" style="padding: 4px 8px; font-size: 13px; white-space: nowrap;">Reiniciar Jogo</button>
+</div>
 
     <div id="mesa-wrapper">
         <div id="mensagem">Conectando ao servidor...</div>

@@ -18,6 +18,7 @@ let emMovimento = false;
 let dadosSincronizadosEnviados = false;
 let resetPendente = false;
 let forcaAtual = 80; // Valor padrão de força
+let avisoTreinoOcultado = false;
 
 let modoTreino = true;
 let mesaBloqueada = false;
@@ -33,22 +34,40 @@ let arrastando = false;
 let miraPronta = false;
 let controleX = 0, controleY = 0;
 
+// --- FUNÇÃO AUXILIAR DE INDICADOR DE TURNO ---
+function atualizarIndicadorTurno() {
+    const turnoIndicador = document.getElementById('turno-indicador');
+    if (!turnoIndicador) return;
+
+    if (meuNumeroJogador === 0) {
+        turnoIndicador.innerText = "ESPECTADOR";
+        turnoIndicador.style.color = "#ffffff";
+        return;
+    }
+}
+
 // --- SOCKETS ---
 socket.on('atribuirJogador', (data) => {
     meuNumeroJogador = data.numeroJogador;
     mesaBloqueada = data.mesaBloqueada;
     
-    if (data.jogadoresConectados === 1) {
-        modoTreino = true;
-        elementoMensagem.innerHTML = "MODO TREINO ATIVO.<br>Você pode praticar livremente!";
-        elementoMensagem.style.display = "block";
-    } else if (meuNumeroJogador === 0) {
-        elementoMensagem.innerHTML = "A mesa está cheia ou em treino privado! Você é um espectador.";
-        elementoMensagem.style.display = "block";
+    // Atualiza o identificador fixo do jogador
+    const elIdentificador = document.getElementById('identificador-jogador');
+    if (elIdentificador) {
+        if (meuNumeroJogador === 1) {
+            elIdentificador.innerText = "VOCÊ: JOGADOR 1 (Azul)";
+            elIdentificador.style.color = "#1e88e5";
+        } else if (meuNumeroJogador === 2) {
+            elIdentificador.innerText = "VOCÊ: JOGADOR 2 (Laranja)";
+            elIdentificador.style.color = "#ff8a65";
+        } else {
+            elIdentificador.innerText = "VOCÊ: ESPECTADOR";
+            elIdentificador.style.color = "#ffffff";
+        }
     }
 
     if (meuNumeroJogador !== 1 && btnTrava) {
-        btnTrava.style.display = "none"; // Apenas J1 controla a trava
+        btnTrava.style.display = "none";
     }
     atualizarIndicadorTurno();
 });
@@ -68,7 +87,7 @@ socket.on('executarTacada', (dados) => {
     discoMaior.cor = (jogadorAtual === 1) ? '#1e88e5' : '#ff8a65';
     emMovimento = true;
     miraPronta = false;
-    btnDisparar.style.display = "none";
+    if (btnDisparar) btnDisparar.style.display = 'inline-block';
     dadosSincronizadosEnviados = false;
     atualizarIndicadorTurno();
 });
@@ -94,8 +113,10 @@ socket.on('sincronizarPosicoes', (dados) => {
 socket.on('atualizarPlacar', (estado) => {
     pontosJ1 = estado.pontosJ1;
     pontosJ2 = estado.pontosJ2;
-    document.getElementById("ptsJ1").innerText = pontosJ1;
-    document.getElementById("ptsJ2").innerText = pontosJ2;
+    const ptsJ1El = document.getElementById("ptsJ1");
+    const ptsJ2El = document.getElementById("ptsJ2");
+    if (ptsJ1El) ptsJ1El.innerText = pontosJ1;
+    if (ptsJ2El) ptsJ2El.innerText = pontosJ2;
 });
 
 socket.on('jogoReiniciado', (estado) => {
@@ -103,8 +124,10 @@ socket.on('jogoReiniciado', (estado) => {
     pontosJ2 = estado.pontosJ2;
     jogadorAtual = estado.jogadorAtual;
     miraPronta = false;
-    btnDisparar.style.display = "none";
+    if (btnDisparar) btnDisparar.style.display = 'inline-block';
     resetPendente = false;
+    atualizarIndicadorTurno();
+});
 
 socket.on('statusTravaAtualizado', (dados) => {
     mesaBloqueada = dados.mesaBloqueada;
@@ -114,12 +137,24 @@ socket.on('statusTravaAtualizado', (dados) => {
     }
 });
 
+socket.on('turnoAtualizado', (estado) => {
+    jogadorAtual = estado.jogadorAtual;
+    atualizarIndicadorTurno();
+});
+
 function alternarTravaTreino() {
-    if (meuNumeroJogador === 1) {
-        mesaBloqueada = !mesaBloqueada;
-        socket.emit('alternarTravaMesa', mesaBloqueada);
-    }
+    if (meuNumeroJogador !== 1) return; // Apenas J1 pode travar
+    mesaBloqueada = !mesaBloqueada;
+    socket.emit('alternarTravaMesa', mesaBloqueada);
 }
+
+socket.on('statusTravaAtualizado', (dados) => {
+    const btnTrava = document.getElementById('btn-trava');
+    mesaBloqueada = dados.mesaBloqueada;
+    if (btnTrava) {
+        btnTrava.innerText = mesaBloqueada ? "Modo: Privado (Treino)" : "Modo: Aberto a Desafiantes";
+    }
+});
 
     document.getElementById("ptsJ1").innerText = 0;
     document.getElementById("ptsJ2").innerText = 0;
@@ -132,20 +167,28 @@ function alternarTravaTreino() {
 
     elementoMensagem.style.display = "none";
     atualizarIndicadorTurno();
-});
+
 
 function reiniciarPartida() {
     socket.emit('solicitarReinicio');
 }
 
 function atualizarIndicadorTurno() {
+    const turnoIndicador = document.getElementById('turno-indicador');
+    if (!turnoIndicador) return;
+
+    if (meuNumeroJogador === 0) {
+        turnoIndicador.innerText = "ESPECTADOR";
+        turnoIndicador.style.color = "#ffffff";
+        return;
+    }
+
     if (jogadorAtual === meuNumeroJogador) {
-        elementoTurno.innerText = "SUA VEZ DE JOGAR!";
-        elementoTurno.style.color = "#00ff88";
+        turnoIndicador.innerText = `J${meuNumeroJogador}: SUA VEZ`;
+        turnoIndicador.style.color = "#00FF00";
     } else {
-        elementoTurno.innerText = `Aguardando jogada do Jogador ${jogadorAtual}...`;
-        elementoTurno.style.color = "#ffeb3b";
-        btnDisparar.style.display = "none";
+        turnoIndicador.innerText = `J${meuNumeroJogador}: AGUARDE`;
+        turnoIndicador.style.color = "#FFCC00";
     }
 }
 
@@ -163,7 +206,7 @@ function tratarReposicionamento() {
     // Se a azul caiu (falta), repõe apenas a azul
     if (!discoMaior.visivel) {
         discoMaior.x = 400; 
-        discoMaior.y = 50;  // 50
+        discoMaior.y = 50;
         discoMaior.visivel = true; 
         discoMaior.caindo = false; 
         discoMaior.escala = 1.0;
@@ -196,9 +239,17 @@ function iniciarArrasto(e) {
     if (jogadorAtual !== meuNumeroJogador) return;
 
     const coords = obterCoordenadas(e);
-    const parado = Math.abs(discoMaior.vx) < 0.05 && Math.abs(discoMaior.vy) < 0.05 &&
-                   Math.abs(discoMenor.vx) < 0.05 && Math.abs(discoMenor.vy) < 0.05;
+// Limite de parada ajustado de 0.05 para 0.20 para evitar o arrasto lento
+    const parado = Math.abs(discoMaior.vx) < 0.20 && Math.abs(discoMaior.vy) < 0.20 &&
+                   Math.abs(discoMenor.vx) < 0.20 && Math.abs(discoMenor.vy) < 0.20;
 
+    if (parado) {
+        // Zera as velocidades imediatamente para travar os discos no lugar
+        discoMaior.vx = 0;
+        discoMaior.vy = 0;
+        discoMenor.vx = 0;
+        discoMenor.vy = 0;
+    }
     const dist = Math.hypot(coords.x - discoMaior.x, coords.y - discoMaior.y);
     if ((dist < discoMaior.raio || miraPronta) && parado && !discoMenor.caindo && !discoMaior.caindo && discoMaior.visivel) {
         arrastando = true;
@@ -242,7 +293,7 @@ function confirmarEExecutarTacada() {
 
         // Esconde o painel do slider após disparar
         if (painelForca) {
-            painelForca.style.display = "block";  //mudei aqui.
+            painelForca.style.display = "flex";
         }
     }
 }
@@ -317,10 +368,16 @@ function atualizarFisica() {
         }
     });
 
-    const tudoParado = discoMaior.vx === 0 && discoMaior.vy === 0 && discoMenor.vx === 0 && discoMenor.vy === 0;
+ const tudoParado = discoMaior.vx === 0 && discoMaior.vy === 0 && discoMenor.vx === 0 && discoMenor.vy === 0;
     if (emMovimento && tudoParado && !dadosSincronizadosEnviados) {
         emMovimento = false;
         dadosSincronizadosEnviados = true;
+
+        // Dispara a troca de turno para o outro jogador ao finalizar o movimento
+        if (jogadorAtual === meuNumeroJogador) {
+            const proximo = jogadorAtual === 1 ? 2 : 1;
+            socket.emit('notificarTrocaTurno', { proximoJogador: proximo });
+        }
 
         if (meuNumeroJogador === 1) {
             socket.emit('notificarSincronizacao', {
@@ -395,7 +452,7 @@ function desenhar() {
         const miraFimY = discoMaior.y + Math.sin(angulo) * comprimentoMira;
 
         // Ajusta a largura da linha de mira proporcionalmente à força escolhida (1.8px até 9px)
-        const larguraLinhaMira = 1 + (forcaAtual / 25);
+        const larguraLinhaMira = 1;  // + (forcaAtual / 25);
 
         ctx.beginPath(); 
         ctx.moveTo(discoMaior.x, discoMaior.y); 
@@ -413,6 +470,14 @@ function desenhar() {
         ctx.strokeStyle = '#ffeb3b'; ctx.lineWidth = 2; ctx.stroke();
 
         ctx.beginPath(); ctx.arc(controleX, controleY, 4, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+
+        // Oculta a mensagem de treino assim que a linha da mira aparece na tela pela 1ª vez
+        if (modoTreino && !avisoTreinoOcultado) {
+            if (typeof elementoMensagem !== 'undefined' && elementoMensagem) {
+                elementoMensagem.style.display = 'none';
+            }
+            avisoTreinoOcultado = true;
+        }
     }
 
     if (discoMaior.visivel) {
@@ -460,7 +525,7 @@ document.addEventListener('keydown', (e) => {
         anguloAtual += passoAngulo;
     } else if (e.key === 'Enter' || e.key === ' ') {
         confirmarEExecutarTacada();
-        if (painelForca) painelForca.style.display = "block";  // mudei aqui
+        if (painelForca) painelForca.style.display = "flex";
         return;
     }
 
@@ -473,8 +538,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Eventos do Slider de Força (Ideal para Celulares)
-if (sliderForca) {
-    // Enquanto arrasta o slider: ajusta a força e a espessura da linha em tempo real
+// Eventos do Slider de Força (Apenas ajusta a força e a espessura da linha)
+  if (sliderForca) {
     sliderForca.addEventListener('input', (e) => {
         if (!miraPronta || emMovimento) return;
 
@@ -488,17 +553,6 @@ if (sliderForca) {
 
         desenhar();
     });
-
-    // Ao soltar o slider (dedo levanta no celular ou mouse solta no PC): dispara a tacada!
-    const dispararAoSoltar = () => {
-        if (miraPronta && !emMovimento && jogadorAtual === meuNumeroJogador) {
-            confirmarEExecutarTacada();
-            if (painelForca) painelForca.style.display = "block"; //mudei aqui
-        }
-    };
-
-    sliderForca.addEventListener('change', dispararAoSoltar);
-    sliderForca.addEventListener('touchend', dispararAoSoltar);
 }
 
 // Garante que o painel de força apareça sempre que a mira for ativada no Canvas
